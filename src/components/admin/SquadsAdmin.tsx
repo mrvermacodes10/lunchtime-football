@@ -70,7 +70,7 @@ export default function SquadsAdmin({ squads, highlightManager }: { squads: Squa
               )}
 
               <form
-                action={(fd) => startTransition(() => updateSquad(fd))}
+                action={async (fd) => { await updateSquad(fd); }}
                 className="mt-3 flex flex-wrap items-end gap-3 border-t border-[#EDE7D8] pt-3"
               >
                 <input type="hidden" name="id" value={s.id} />
