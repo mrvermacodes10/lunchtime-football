@@ -1,0 +1,147 @@
+// Lunchtime Football Fantasy League — data model
+// Dev/sandbox uses SQLite (file-based, real persistence, zero setup).
+// For Vercel production, switch provider to "postgresql" and set DATABASE_URL
+// to a Vercel Postgres / Neon connection string — no other code changes needed.
+//
+// MatchStatus is a plain String field rather than a Prisma `enum`: SQLite
+// has no native enum type, and Prisma requires one to use `enum`
+// (Postgres/MySQL/CockroachDB only). The allowed values are defined once, in
+// code, in src/lib/enums.ts, and enforced there — this also means switching
+// to Postgres later needs no schema changes at all.
+//
+// Players have no position field at all. Formations (e.g. "2-2-2") are a
+// purely visual pitch layout for the squad builder — they don't constrain
+// which players can fill which slot.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model RealTeam {
+  id      String   @id @default(cuid())
+  name    String   @unique
+  players Player[]
+
+  homeMatches Match[] @relation("HomeTeam")
+  awayMatches Match[] @relation("AwayTeam")
+}
+
+model Player {
+  id             String   @id @default(cuid())
+  name           String
+  price          Float    @default(4.0)
+  totalPoints    Int      @default(0)
+  gwPoints       Int      @default(0)
+  goals          Int      @default(0)
+  assists        Int      @default(0)
+  cleanSheets    Int      @default(0)
+  saves          Int      @default(0)
+  appearances    Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  realTeamId String
+  realTeam   RealTeam @relation(fields: [realTeamId], references: [id], onDelete: Cascade)
+
+  squadPlayers SquadPlayer[]
+}
+
+model Manager {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  squads Squad[]
+}
+
+model Squad {
+  id            String   @id @default(cuid())
+  formation     String
+  totalPrice    Float
+  moneyLeft     Float
+  totalPoints   Int      @default(0)
+  gwPoints      Int      @default(0)
+  gameweek      Int
+  locked        Boolean  @default(false)
+  savedAt       DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  managerId String
+  manager   Manager @relation(fields: [managerId], references: [id], onDelete: Cascade)
+
+  players SquadPlayer[]
+
+  @@unique([managerId, gameweek])
+}
+
+model SquadPlayer {
+  id       String @id @default(cuid())
+  squadId  String
+  squad    Squad  @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([squadId, playerId])
+}
+
+model Gameweek {
+  id                String   @id @default(cuid())
+  number            Int      @unique
+  isCurrent         Boolean  @default(false)
+  transfersOpen     Boolean  @default(true)
+  squadsLocked      Boolean  @default(false)
+  scored            Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  matches Match[]
+}
+
+model Match {
+  id         String   @id @default(cuid())
+  date       DateTime
+  status     String   @default("SCHEDULED") // one of src/lib/enums.ts MATCH_STATUSES
+  homeScore  Int?
+  awayScore  Int?
+
+  gameweekId String
+  gameweek   Gameweek @relation(fields: [gameweekId], references: [id], onDelete: Cascade)
+
+  homeTeamId String
+  homeTeam   RealTeam @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeamId String
+  awayTeam   RealTeam @relation("AwayTeam", fields: [awayTeamId], references: [id])
+}
+
+// Single-row table of global, admin-editable league settings.
+model Setting {
+  id                 String  @id @default("singleton")
+  leagueName         String  @default("Lunchtime Football")
+  season             String  @default("2026/27")
+  subtitle           String  @default("Pick a seven-a-side squad, then watch the table.")
+  startingBudget     Float   @default(50.0)
+  squadSize          Int     @default(6)
+  formations         String  @default("2-3-1,2-2-2,2-1-3,3-2-1,3-1-2")
+  transferWindowOpen Boolean @default(true)
+  bannerOpenTitle    String  @default("Transfer window open")
+  bannerOpenBody     String  @default("Build or edit your squad before the deadline.")
+  bannerShutTitle    String  @default("Transfer window shut")
+  bannerShutBody     String  @default("Teams are locked while the gameweek is being played. The admin reopens it afterwards.")
+}
+
+model AdminUser {
+  id           String @id @default(cuid())
+  username     String @unique
+  passwordHash String
+}
+
+model Session {
+  token     String   @id
+  adminId   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}

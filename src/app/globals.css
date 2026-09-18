@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Space Grotesk", sans-serif;
+  --font-body: "Inter", sans-serif;
+}
+
+body {
+  background: #f6f3ea;
+  color: #10201a;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e4ded0;
+  border-radius: 10px;
+}
+
+.hairline {
+  border-color: #e4ded0;
+}
+
+.btn-primary {
+  background: #0e1f1a;
+  color: #f6f3ea;
+  border-radius: 8px;
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  transition: background 0.15s ease;
+}
+.btn-primary:hover {
+  background: #17342a;
+}
+.btn-primary:disabled {
+  background: #b9b3a3;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #10201a;
+  border: 1px solid #cfc7b2;
+  border-radius: 8px;
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.btn-secondary:hover {
+  border-color: #10201a;
+  background: #efe9da;
+}
+
+.pitch-surface {
+  background: repeating-linear-gradient(
+    to bottom,
+    #163b2c 0px,
+    #163b2c 44px,
+    #133326 44px,
+    #133326 88px
+  );
+  border-radius: 14px;
+  position: relative;
+}
+
+.player-slot {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cfc7b2;
+  border-radius: 8px;
+}
