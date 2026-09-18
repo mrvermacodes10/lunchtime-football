@@ -20,7 +20,7 @@ export default function GameweeksAdmin({ gameweeks }: { gameweeks: Gameweek[] })
     <div>
       <h1 className="font-display text-2xl font-semibold mb-4">Gameweeks</h1>
 
-      <form action={(fd) => startTransition(() => createGameweek(fd))} className="card p-4 mb-5 flex items-end gap-2">
+      <form action={async (fd) => { await createGameweek(fd); }} className="card p-4 mb-5 flex items-end gap-2">
         <div>
           <label className="text-xs font-semibold uppercase tracking-wide text-[#8a8471]">New gameweek number</label>
           <input name="number" type="number" defaultValue={nextNumber} className="rounded-md border border-[#cfc7b2] px-2 py-1.5 text-sm w-28" />
