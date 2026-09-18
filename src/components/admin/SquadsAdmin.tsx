@@ -14,6 +14,8 @@ type Squad = {
   gwPoints: number;
   locked: boolean;
   savedAt: string;
+  captainId: string | null;
+  captainName: string | null;
   players: { id: string; name: string }[];
 };
 
@@ -39,6 +41,8 @@ export default function SquadsAdmin({ squads, highlightManager }: { squads: Squa
                   <div className="font-semibold">{s.managerName}</div>
                   <div className="text-xs text-[#8a8471]">
                     GW{s.gameweek} · {s.formation} · £{s.totalPrice.toFixed(1)}m spent · £{s.moneyLeft.toFixed(1)}m left
+                    {" · "}
+                    Captain: <span className="font-medium text-[#55503F]">{s.captainName ?? "none set"}</span>
                     {s.locked && <span className="ml-1.5 rounded-full bg-[#F3E9E4] text-[#8A4A2E] px-2 py-0.5 text-[10px] font-semibold">LOCKED</span>}
                   </div>
                 </div>
@@ -64,6 +68,11 @@ export default function SquadsAdmin({ squads, highlightManager }: { squads: Squa
                   {s.players.map((p) => (
                     <li key={p.id} className="border-b border-[#EDE7D8] py-1">
                       {p.name}
+                      {s.captainId === p.id && (
+                        <span className="ml-1.5 inline-flex w-4 h-4 rounded-full bg-[#C9A227] text-[#10201A] text-[9px] font-bold items-center justify-center align-middle">
+                          C
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -74,6 +83,17 @@ export default function SquadsAdmin({ squads, highlightManager }: { squads: Squa
                 className="mt-3 flex flex-wrap items-end gap-3 border-t border-[#EDE7D8] pt-3"
               >
                 <input type="hidden" name="id" value={s.id} />
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-[#8a8471]">Captain</label>
+                  <select name="captainId" defaultValue={s.captainId ?? ""} className={inputCls + " w-40"}>
+                    <option value="">No captain</option>
+                    {s.players.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-wide text-[#8a8471]">GW points</label>
                   <input name="gwPoints" type="number" defaultValue={s.gwPoints} className={inputCls} />

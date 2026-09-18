@@ -9,9 +9,12 @@ type PlayerRow = {
   totalPoints: number;
   gwPoints: number;
   realTeam: { name: string };
+  selectedCount: number;
+  selectedPercent: number;
+  totalManagers: number;
 };
 
-type SortKey = "points" | "price" | "name";
+type SortKey = "points" | "price" | "name" | "selected";
 
 export default function PlayersTable({ players, teams }: { players: PlayerRow[]; teams: string[] }) {
   const [search, setSearch] = useState("");
@@ -24,6 +27,7 @@ export default function PlayersTable({ players, teams }: { players: PlayerRow[];
     out = [...out].sort((a, b) => {
       if (sort === "points") return b.totalPoints - a.totalPoints;
       if (sort === "price") return b.price - a.price;
+      if (sort === "selected") return b.selectedPercent - a.selectedPercent;
       return a.name.localeCompare(b.name);
     });
     return out;
@@ -57,12 +61,13 @@ export default function PlayersTable({ players, teams }: { players: PlayerRow[];
         >
           <option value="points">Sort: Total points</option>
           <option value="price">Sort: Price</option>
+          <option value="selected">Sort: Selected by</option>
           <option value="name">Sort: Name</option>
         </select>
       </div>
 
       <div className="card overflow-x-auto">
-        <table className="w-full text-sm min-w-[560px]">
+        <table className="w-full text-sm min-w-[680px]">
           <thead>
             <tr className="border-b border-[#EDE7D8] text-left text-xs uppercase tracking-wide text-[#8a8471]">
               <th className="px-4 py-3 font-semibold">Name</th>
@@ -70,12 +75,13 @@ export default function PlayersTable({ players, teams }: { players: PlayerRow[];
               <th className="px-4 py-3 font-semibold text-right">Price</th>
               <th className="px-4 py-3 font-semibold text-right">GW pts</th>
               <th className="px-4 py-3 font-semibold text-right">Total pts</th>
+              <th className="px-4 py-3 font-semibold text-right">Selected by</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-[#8a8471]">
+                <td colSpan={6} className="px-4 py-8 text-center text-[#8a8471]">
                   No players match those filters.
                 </td>
               </tr>
@@ -87,6 +93,18 @@ export default function PlayersTable({ players, teams }: { players: PlayerRow[];
                 <td className="px-4 py-3 text-right">£{p.price.toFixed(1)}m</td>
                 <td className="px-4 py-3 text-right">{p.gwPoints}</td>
                 <td className="px-4 py-3 text-right font-display font-semibold">{p.totalPoints}</td>
+                <td className="px-4 py-3 text-right">
+                  {p.totalManagers === 0 ? (
+                    <span className="text-[#8a8471]">—</span>
+                  ) : (
+                    <div>
+                      <div className="font-medium">{p.selectedPercent}%</div>
+                      <div className="text-[11px] text-[#8a8471]">
+                        {p.selectedCount} of {p.totalManagers}
+                      </div>
+                    </div>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

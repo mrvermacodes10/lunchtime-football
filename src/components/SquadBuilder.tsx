@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { loadManagerSquad, saveSquad } from "@/app/actions/squad";
-import { parseFormation } from "@/lib/data";
+import { parseFormation, distributeIntoRows } from "@/lib/data";
 
 type PlayerLite = {
   id: string;
@@ -30,6 +30,7 @@ export default function SquadBuilder({
   const [managerName, setManagerName] = useState("");
   const [formation, setFormation] = useState(formations[0] ?? "2-2-2");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [captainId, setCaptainId] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
@@ -51,16 +52,28 @@ export default function SquadBuilder({
         if (res.squad) {
           setFormation(res.squad.formation);
           setSelectedIds(res.squad.playerIds);
+          setCaptainId(res.squad.captainId ?? null);
           setLocked(res.squad.locked);
           setMessage({ type: "success", text: "Loaded your saved squad for this gameweek." });
         } else {
           setSelectedIds([]);
+          setCaptainId(null);
           setLocked(false);
         }
       });
     }, 500);
     return () => clearTimeout(handle);
   }, [managerName, hasLoadedFor]);
+
+  // Safety net: if the captain is ever no longer in the selected squad —
+  // transferred out, formation shrunk, etc. — clear the captain selection
+  // so the manager is prompted to choose a new one rather than silently
+  // saving a stale captainId.
+  useEffect(() => {
+    if (captainId && !selectedIds.includes(captainId)) {
+      setCaptainId(null);
+    }
+  }, [selectedIds, captainId]);
 
   const selectedPlayers = selectedIds.map((id) => playerById.get(id)).filter(Boolean) as PlayerLite[];
   const spent = selectedPlayers.reduce((s, p) => s + p.price, 0);
@@ -71,6 +84,7 @@ export default function SquadBuilder({
     setMessage(null);
     if (selectedIds.includes(p.id)) {
       setSelectedIds((ids) => ids.filter((id) => id !== p.id));
+      if (captainId === p.id) setCaptainId(null);
       return;
     }
     if (selectedIds.length >= shape.total) {
@@ -84,8 +98,15 @@ export default function SquadBuilder({
     setSelectedIds((ids) => [...ids, p.id]);
   }
 
+  function makeCaptain(playerId: string) {
+    if (!canEdit) return;
+    setCaptainId(playerId);
+    setMessage(null);
+  }
+
   function clearSquad() {
     setSelectedIds([]);
+    setCaptainId(null);
     setMessage(null);
   }
 
@@ -95,7 +116,9 @@ export default function SquadBuilder({
     if (!nextShape) return;
     // Formation only changes the pitch layout, not who's allowed in it — but
     // if the new formation holds fewer players than are currently picked,
-    // trim the squad down to fit (keeping the earliest picks).
+    // trim the squad down to fit (keeping the earliest picks). The captain
+    // safety-net effect above clears captainId automatically if they get
+    // trimmed out.
     if (selectedIds.length > nextShape.total) {
       setSelectedIds((ids) => ids.slice(0, nextShape.total));
     }
@@ -103,8 +126,12 @@ export default function SquadBuilder({
 
   function handleSave() {
     setMessage(null);
+    if (selectedIds.length === shape.total && !captainId) {
+      setMessage({ type: "error", text: "Choose a captain before saving — click \"C\" on one of your players." });
+      return;
+    }
     startTransition(async () => {
-      const res = await saveSquad({ managerName, formation, playerIds: selectedIds });
+      const res = await saveSquad({ managerName, formation, playerIds: selectedIds, captainId });
       if (res.ok) {
         setMessage({ type: "success", text: `Squad saved for Gameweek ${res.gameweek}.` });
       } else {
@@ -120,18 +147,7 @@ export default function SquadBuilder({
   // Purely visual: distribute the selected players into pitch rows in
   // selection order, top row first. Any player can sit in any row — rows
   // exist only to lay the squad out like a football pitch.
-  const rowSlots: { label: string; players: (PlayerLite | undefined)[] }[] = [];
-  {
-    let cursor = 0;
-    shape.rows.forEach((count, i) => {
-      const rowPlayers: (PlayerLite | undefined)[] = [];
-      for (let s = 0; s < count; s++) {
-        rowPlayers.push(selectedPlayers[cursor]);
-        cursor++;
-      }
-      rowSlots.push({ label: `Row ${i + 1}`, players: rowPlayers });
-    });
-  }
+  const rowSlots = distributeIntoRows(shape.rows, selectedPlayers);
 
   return (
     <div className="grid lg:grid-cols-[380px_1fr] gap-6">
@@ -183,16 +199,39 @@ export default function SquadBuilder({
         </div>
 
         <div className="pitch-surface p-3 sm:p-4">
-          {rowSlots.map((row) => (
-            <div key={row.label} className="mb-3 last:mb-0">
+          {rowSlots.map((row, rowIndex) => (
+            <div key={rowIndex} className="mb-3 last:mb-0">
               <div className="flex justify-center gap-2 flex-wrap">
-                {row.players.map((p, i) => (
-                  <div key={i} className="player-slot w-[92px] sm:w-[104px] px-1.5 py-2 text-center">
+                {row.map((p, i) => (
+                  <div key={i} className="player-slot relative w-[92px] sm:w-[104px] px-1.5 py-2 text-center">
                     {p ? (
-                      <button onClick={() => togglePlayer(p)} className="w-full" title="Remove">
-                        <div className="text-[11px] font-semibold leading-tight truncate">{p.name}</div>
-                        <div className="text-[10px] text-[#8a8471]">£{p.price.toFixed(1)}m</div>
-                      </button>
+                      <>
+                        {captainId === p.id && (
+                          <span
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#C9A227] text-[#10201A] text-[10px] font-bold flex items-center justify-center border border-white"
+                            title="Captain"
+                          >
+                            C
+                          </span>
+                        )}
+                        <button onClick={() => togglePlayer(p)} className="w-full" title="Remove from squad">
+                          <div className="text-[11px] font-semibold leading-tight truncate">{p.name}</div>
+                          <div className="text-[10px] text-[#8a8471]">£{p.price.toFixed(1)}m</div>
+                        </button>
+                        {canEdit && (
+                          <button
+                            onClick={() => makeCaptain(p.id)}
+                            disabled={captainId === p.id}
+                            className={`mt-1 w-full rounded text-[9px] font-bold uppercase tracking-wide py-0.5 ${
+                              captainId === p.id
+                                ? "bg-[#C9A227] text-[#10201A] cursor-default"
+                                : "bg-[#F6F3EA] text-[#8a8471] hover:bg-[#EDE7D8] hover:text-[#10201A]"
+                            }`}
+                          >
+                            {captainId === p.id ? "Captain" : "Make captain"}
+                          </button>
+                        )}
+                      </>
                     ) : (
                       <div className="text-[10px] text-[#8a8471]">Empty</div>
                     )}
@@ -232,7 +271,7 @@ export default function SquadBuilder({
             ? "Squads are locked for this gameweek"
             : locked
             ? "Your squad is locked for this gameweek"
-            : `Pick ${shape.total} players for this formation · Add your name at the top`}
+            : `Pick ${shape.total} players and a captain for this formation · Add your name at the top`}
         </p>
       </div>
 
@@ -263,7 +302,14 @@ export default function SquadBuilder({
                 }`}
               >
                 <div>
-                  <div className="text-sm font-semibold">{p.name}</div>
+                  <div className="text-sm font-semibold flex items-center gap-1.5">
+                    {p.name}
+                    {captainId === p.id && (
+                      <span className="w-4 h-4 rounded-full bg-[#C9A227] text-[#10201A] text-[9px] font-bold flex items-center justify-center">
+                        C
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-[#8a8471]">
                     {p.realTeam.name} · {p.totalPoints} pts
                   </div>

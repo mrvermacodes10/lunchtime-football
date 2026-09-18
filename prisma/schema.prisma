@@ -49,6 +49,7 @@ model Player {
   realTeam   RealTeam @relation(fields: [realTeamId], references: [id], onDelete: Cascade)
 
   squadPlayers SquadPlayer[]
+  captainOfSquads Squad[] @relation("SquadCaptain")
 }
 
 model Manager {
@@ -75,6 +76,17 @@ model Squad {
   manager   Manager @relation(fields: [managerId], references: [id], onDelete: Cascade)
 
   players SquadPlayer[]
+
+  // The manager's chosen captain for this squad — must be one of the
+  // players in `players` above (enforced in the server actions, since a
+  // pure Prisma constraint can't express "must belong to this squad's own
+  // SquadPlayer rows"). Nullable: a squad can exist momentarily without a
+  // captain (e.g. mid-edit, or right after the previous captain was
+  // transferred out) even though the UI pushes managers to always set one.
+  // onDelete: SetNull so deleting a player from the league (admin action)
+  // never fails just because someone had captained them.
+  captainId String?
+  captain   Player? @relation("SquadCaptain", fields: [captainId], references: [id], onDelete: SetNull)
 
   @@unique([managerId, gameweek])
 }

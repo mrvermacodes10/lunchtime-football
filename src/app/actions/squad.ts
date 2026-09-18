@@ -26,13 +26,19 @@ export async function loadManagerSquad(managerName: string) {
       formation: squad.formation,
       locked: squad.locked,
       playerIds: squad.players.map((sp) => sp.playerId),
+      captainId: squad.captainId,
       totalPrice: squad.totalPrice,
       moneyLeft: squad.moneyLeft,
     },
   };
 }
 
-export async function saveSquad(input: { managerName: string; formation: string; playerIds: string[] }) {
+export async function saveSquad(input: {
+  managerName: string;
+  formation: string;
+  playerIds: string[];
+  captainId?: string | null;
+}) {
   const managerName = input.managerName.trim();
   if (!managerName) return { ok: false, error: "Enter your name before saving." };
   if (managerName.length > 60) return { ok: false, error: "Name is too long." };
@@ -68,6 +74,19 @@ export async function saveSquad(input: { managerName: string; formation: string;
     return { ok: false, error: "One of the selected players no longer exists." };
   }
 
+  // Captain: must be one of the players actually in this squad. Every
+  // complete squad needs exactly one — if the manager transferred their old
+  // captain out, the UI clears the selection client-side, so a missing
+  // captainId here just means "please choose one" rather than a silent
+  // fallback to no captain.
+  const captainId = input.captainId || null;
+  if (captainId && !uniqueIds.includes(captainId)) {
+    return { ok: false, error: "Your captain has to be one of your selected players." };
+  }
+  if (!captainId) {
+    return { ok: false, error: "Choose a captain for your squad before saving." };
+  }
+
   const totalPrice = players.reduce((sum, p) => sum + p.price, 0);
   if (totalPrice > settings.startingBudget + 1e-9) {
     return { ok: false, error: `That squad costs £${totalPrice.toFixed(1)}m — over the £${settings.startingBudget.toFixed(1)}m budget.` };
@@ -92,7 +111,7 @@ export async function saveSquad(input: { managerName: string; formation: string;
 
   const squad = await prisma.squad.upsert({
     where: { managerId_gameweek: { managerId: manager.id, gameweek: gw.number } },
-    update: { formation: input.formation, totalPrice, moneyLeft, totalPoints, gwPoints },
+    update: { formation: input.formation, totalPrice, moneyLeft, totalPoints, gwPoints, captainId },
     create: {
       managerId: manager.id,
       gameweek: gw.number,
@@ -101,6 +120,7 @@ export async function saveSquad(input: { managerName: string; formation: string;
       moneyLeft,
       totalPoints,
       gwPoints,
+      captainId,
     },
   });
 
@@ -111,6 +131,7 @@ export async function saveSquad(input: { managerName: string; formation: string;
 
   revalidatePath("/");
   revalidatePath("/table");
+  revalidatePath("/players");
 
   return { ok: true, gameweek: gw.number, moneyLeft, totalPrice };
 }

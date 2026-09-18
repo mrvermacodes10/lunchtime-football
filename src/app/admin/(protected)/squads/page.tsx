@@ -7,7 +7,7 @@ export default async function AdminSquadsPage({
   searchParams: { manager?: string };
 }) {
   const squads = await prisma.squad.findMany({
-    include: { manager: true, players: { include: { player: true } } },
+    include: { manager: true, players: { include: { player: true } }, captain: true },
     orderBy: [{ gameweek: "desc" }, { savedAt: "desc" }],
   });
 
@@ -25,6 +25,8 @@ export default async function AdminSquadsPage({
         gwPoints: s.gwPoints,
         locked: s.locked,
         savedAt: s.savedAt.toISOString(),
+        captainId: s.captainId,
+        captainName: s.captain?.name ?? null,
         players: s.players.map((sp) => ({ id: sp.player.id, name: sp.player.name })),
       }))}
     />

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getLeagueTable, getCurrentGameweek } from "@/lib/data";
 
 export default async function TablePage() {
@@ -7,7 +8,7 @@ export default async function TablePage() {
     <div>
       <h2 className="font-display text-2xl font-semibold">League table</h2>
       <p className="text-sm text-[#8a8471] mt-1">
-        Ranked by total fantasy points{gw ? ` · through Gameweek ${gw.number}` : ""}.
+        Ranked by total fantasy points{gw ? ` · through Gameweek ${gw.number}` : ""}. Click a manager to see their squad.
       </p>
 
       <div className="card mt-5 overflow-x-auto">
@@ -32,7 +33,11 @@ export default async function TablePage() {
             {rows.map((r) => (
               <tr key={r.managerId} className="border-b border-[#EDE7D8] last:border-0">
                 <td className="px-4 py-3 font-display font-semibold">{r.rank}</td>
-                <td className="px-4 py-3 font-medium">{r.managerName}</td>
+                <td className="px-4 py-3 font-medium">
+                  <Link href={`/team/${r.managerId}`} className="underline decoration-[#cfc7b2] underline-offset-2 hover:decoration-[#10201A]">
+                    {r.managerName}
+                  </Link>
+                </td>
                 <td className="px-4 py-3 text-[#8a8471]">{r.squadsSaved}</td>
                 <td className="px-4 py-3 text-right">{r.gwPoints}</td>
                 <td className="px-4 py-3 text-right font-display font-semibold">{r.totalPoints}</td>

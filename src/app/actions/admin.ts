@@ -132,7 +132,17 @@ export async function updateSquad(formData: FormData) {
   const totalPoints = parseInt(String(formData.get("totalPoints") ?? "0"), 10);
   const gwPoints = parseInt(String(formData.get("gwPoints") ?? "0"), 10);
   const locked = formData.get("locked") === "on";
-  await prisma.squad.update({ where: { id }, data: { totalPoints, gwPoints, locked } });
+  const captainIdRaw = String(formData.get("captainId") ?? "");
+  const captainId = captainIdRaw || null;
+
+  if (captainId) {
+    const belongsToSquad = await prisma.squadPlayer.findUnique({
+      where: { squadId_playerId: { squadId: id, playerId: captainId } },
+    });
+    if (!belongsToSquad) return { ok: false, error: "That player isn't in this squad." };
+  }
+
+  await prisma.squad.update({ where: { id }, data: { totalPoints, gwPoints, locked, captainId } });
   revalidatePath("/admin/squads");
   refreshPublicPages();
   return { ok: true };

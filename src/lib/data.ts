@@ -37,6 +37,77 @@ export async function getCurrentGameweek() {
   return gw;
 }
 
+// Every manager's most recently saved squad (by gameweek), with its players
+// and captain loaded. This is the same "current squad" definition the
+// league table already uses for a manager's latest points (m.squads[0]
+// ordered by gameweek desc) — reused here so the team detail page and the
+// player selection-percentage stats agree with what the rest of the site
+// already treats as "current".
+export async function getManagersWithCurrentSquad() {
+  const managers = await prisma.manager.findMany({
+    include: {
+      squads: {
+        orderBy: { gameweek: "desc" },
+        take: 1,
+        include: {
+          players: { include: { player: true } },
+          captain: true,
+        },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  return managers.map((m) => ({
+    id: m.id,
+    name: m.name,
+    squad: m.squads[0] ?? null,
+  }));
+}
+
+// For each player, how many managers currently have them in their squad —
+// used by the Players page's "Selected by X%" column. Calculated fresh from
+// the database every call (no caching, no hardcoding), so transfers are
+// reflected immediately.
+export async function getPlayerSelectionStats() {
+  const managers = await getManagersWithCurrentSquad();
+  const totalManagers = managers.length;
+  const counts = new Map<string, number>();
+
+  for (const m of managers) {
+    if (!m.squad) continue;
+    for (const sp of m.squad.players) {
+      counts.set(sp.playerId, (counts.get(sp.playerId) ?? 0) + 1);
+    }
+  }
+
+  function forPlayer(playerId: string) {
+    const count = counts.get(playerId) ?? 0;
+    const percent = totalManagers > 0 ? Math.round((count / totalManagers) * 100) : 0;
+    return { count, totalManagers, percent };
+  }
+
+  return { totalManagers, counts, forPlayer };
+}
+
+// Purely visual: splits a flat, ordered list of items into pitch rows sized
+// by `rows` (e.g. [2, 2, 2] for formation "2-2-2"). Shared by the squad
+// builder (editable) and the read-only team detail page, so both lay a
+// squad out on the pitch the same way.
+export function distributeIntoRows<T>(rows: [number, number, number], items: T[]): (T | undefined)[][] {
+  const out: (T | undefined)[][] = [];
+  let cursor = 0;
+  for (const count of rows) {
+    const row: (T | undefined)[] = [];
+    for (let i = 0; i < count; i++) {
+      row.push(items[cursor]);
+      cursor++;
+    }
+    out.push(row);
+  }
+  return out;
+}
+
 export async function getLeagueTable() {
   const managers = await prisma.manager.findMany({
     include: {
