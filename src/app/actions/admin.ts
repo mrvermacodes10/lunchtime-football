@@ -5,6 +5,8 @@ import { requireAdmin, verifyAdminLogin, createSession, destroySession } from "@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isMatchStatus } from "@/lib/enums";
+import { getSettings, getFormationList } from "@/lib/data";
+import { validateSquadSelection } from "@/lib/squadValidation";
 
 function refreshPublicPages() {
   revalidatePath("/");
@@ -143,6 +145,59 @@ export async function updateSquad(formData: FormData) {
   }
 
   await prisma.squad.update({ where: { id }, data: { totalPoints, gwPoints, locked, captainId } });
+  revalidatePath("/admin/squads");
+  refreshPublicPages();
+  return { ok: true };
+}
+
+
+export async function adminSaveSquad(input: {
+  squadId: string;
+  formation: string;
+  playerIds: string[];
+  captainId: string | null;
+  totalPoints: number;
+  gwPoints: number;
+  locked: boolean;
+}) {
+  await requireAdmin();
+
+  const squad = await prisma.squad.findUnique({ where: { id: input.squadId } });
+  if (!squad) return { ok: false, error: "Squad not found." };
+
+  const settings = await getSettings();
+  const validFormations = getFormationList(settings);
+
+  const validation = await validateSquadSelection({
+    formation: input.formation,
+    playerIds: input.playerIds,
+    captainId: input.captainId,
+    startingBudget: settings.startingBudget,
+    validFormations,
+  });
+  if (!validation.ok) return validation;
+
+  const { uniqueIds, captainId, totalPrice, moneyLeft } = validation;
+
+  await prisma.$transaction([
+    prisma.squadPlayer.deleteMany({ where: { squadId: input.squadId } }),
+    prisma.squadPlayer.createMany({
+      data: uniqueIds.map((playerId) => ({ squadId: input.squadId, playerId })),
+    }),
+    prisma.squad.update({
+      where: { id: input.squadId },
+      data: {
+        formation: input.formation,
+        totalPrice,
+        moneyLeft,
+        totalPoints: input.totalPoints,
+        gwPoints: input.gwPoints,
+        captainId,
+        locked: input.locked,
+      },
+    }),
+  ]);
+
   revalidatePath("/admin/squads");
   refreshPublicPages();
   return { ok: true };

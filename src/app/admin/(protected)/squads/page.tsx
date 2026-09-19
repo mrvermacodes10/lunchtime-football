@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getSettings, getFormationList } from "@/lib/data";
 import SquadsAdmin from "@/components/admin/SquadsAdmin";
 
 export default async function AdminSquadsPage({
@@ -6,14 +7,30 @@ export default async function AdminSquadsPage({
 }: {
   searchParams: { manager?: string };
 }) {
-  const squads = await prisma.squad.findMany({
-    include: { manager: true, players: { include: { player: true } }, captain: true },
-    orderBy: [{ gameweek: "desc" }, { savedAt: "desc" }],
-  });
+  const [squads, allPlayers, settings] = await Promise.all([
+    prisma.squad.findMany({
+      include: { manager: true, players: { include: { player: true } }, captain: true },
+      orderBy: [{ gameweek: "desc" }, { savedAt: "desc" }],
+    }),
+    prisma.player.findMany({
+      include: { realTeam: true },
+      orderBy: [{ totalPoints: "desc" }],
+    }),
+    getSettings(),
+  ]);
 
   return (
     <SquadsAdmin
       highlightManager={searchParams.manager}
+      allPlayers={allPlayers.map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        totalPoints: p.totalPoints,
+        realTeamName: p.realTeam.name,
+      }))}
+      startingBudget={settings.startingBudget}
+      formations={getFormationList(settings)}
       squads={squads.map((s) => ({
         id: s.id,
         managerName: s.manager.name,
