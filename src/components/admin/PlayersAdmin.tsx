@@ -46,7 +46,7 @@ export default function PlayersAdmin({ players, teams }: { players: Player[]; te
 
       {showTeamForm && (
         <form
-          action={(fd) => startTransition(() => createRealTeam(fd))}
+          action={(fd) => startTransition(() => { void createRealTeam(fd); })}
           className="card p-4 mb-4 flex gap-2 items-end"
         >
           <div className="flex-1">
