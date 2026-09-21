@@ -63,8 +63,8 @@ export async function validateSquadSelection({
     };
   }
   const moneyLeft = startingBudget - totalPrice;
-  const totalPoints = players.reduce((sum, p) => sum + p.totalPoints, 0);
-  const gwPoints = players.reduce((sum, p) => sum + p.gwPoints, 0);
+  const totalPoints = players.reduce((sum, p) => sum + p.totalPoints, 0) + (players.find((p) => p.id === resolvedCaptainId)?.totalPoints ?? 0);
+  const gwPoints = players.reduce((sum, p) => sum + p.gwPoints, 0) + (players.find((p) => p.id === resolvedCaptainId)?.gwPoints ?? 0);
 
   return {
     ok: true as const,

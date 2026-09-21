@@ -93,8 +93,8 @@ export async function saveSquad(input: {
   }
   const moneyLeft = settings.startingBudget - totalPrice;
 
-  const totalPoints = players.reduce((sum, p) => sum + p.totalPoints, 0);
-  const gwPoints = players.reduce((sum, p) => sum + p.gwPoints, 0);
+  const totalPoints = players.reduce((sum, p) => sum + p.totalPoints, 0) + (players.find((p) => p.id === captainId)?.totalPoints ?? 0);
+  const gwPoints = players.reduce((sum, p) => sum + p.gwPoints, 0) + (players.find((p) => p.id === captainId)?.gwPoints ?? 0);
 
   const manager = await prisma.manager.upsert({
     where: { name: managerName },
