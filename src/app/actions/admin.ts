@@ -7,12 +7,14 @@ import { redirect } from "next/navigation";
 import { isMatchStatus } from "@/lib/enums";
 import { getSettings, getFormationList } from "@/lib/data";
 import { validateSquadSelection } from "@/lib/squadValidation";
+import { calculatePlayerPoints } from "@/lib/scoring";
 
 function refreshPublicPages() {
   revalidatePath("/");
   revalidatePath("/table");
   revalidatePath("/players");
   revalidatePath("/match-centre");
+  revalidatePath("/top-scorers");
 }
 
 // ---------- Auth ----------
@@ -51,8 +53,26 @@ export async function createPlayer(formData: FormData) {
   const price = parseFloat(String(formData.get("price") ?? "4"));
   if (!name || !realTeamId) return { ok: false, error: "Name and team are required." };
 
+  const goals = parseInt(String(formData.get("goals") ?? "0"), 10) || 0;
+  const motm = parseInt(String(formData.get("motm") ?? "0"), 10) || 0;
+  const under5 = parseInt(String(formData.get("under5") ?? "0"), 10) || 0;
+  const extraPoints = parseInt(String(formData.get("extraPoints") ?? "0"), 10) || 0;
+  const points = calculatePlayerPoints({ goals, motm, under5, extraPoints });
+
   await prisma.player.create({
-    data: { name, realTeamId, price: isNaN(price) ? 4 : price },
+    data: {
+      name,
+      realTeamId,
+      price: isNaN(price) ? 4 : price,
+      goals,
+      motm,
+      under5,
+      extraPoints,
+      // No gameweek breakdown in this scoring system — total and "current
+      // gameweek" points are always the same computed number.
+      totalPoints: points,
+      gwPoints: points,
+    },
   });
   revalidatePath("/admin/players");
   refreshPublicPages();
@@ -62,17 +82,24 @@ export async function createPlayer(formData: FormData) {
 export async function updatePlayer(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id"));
+  const goals = parseInt(String(formData.get("goals") ?? "0"), 10) || 0;
+  const motm = parseInt(String(formData.get("motm") ?? "0"), 10) || 0;
+  const under5 = parseInt(String(formData.get("under5") ?? "0"), 10) || 0;
+  const extraPoints = parseInt(String(formData.get("extraPoints") ?? "0"), 10) || 0;
+  const points = calculatePlayerPoints({ goals, motm, under5, extraPoints });
+
   const data = {
     name: String(formData.get("name") ?? "").trim(),
     realTeamId: String(formData.get("realTeamId") ?? ""),
     price: parseFloat(String(formData.get("price") ?? "0")),
-    totalPoints: parseInt(String(formData.get("totalPoints") ?? "0"), 10),
-    gwPoints: parseInt(String(formData.get("gwPoints") ?? "0"), 10),
-    goals: parseInt(String(formData.get("goals") ?? "0"), 10),
-    assists: parseInt(String(formData.get("assists") ?? "0"), 10),
-    cleanSheets: parseInt(String(formData.get("cleanSheets") ?? "0"), 10),
-    saves: parseInt(String(formData.get("saves") ?? "0"), 10),
-    appearances: parseInt(String(formData.get("appearances") ?? "0"), 10),
+    goals,
+    motm,
+    under5,
+    extraPoints,
+    // Always recalculated from the stats above — never typed in directly.
+    // No gameweek breakdown, so total and "current gameweek" points match.
+    totalPoints: points,
+    gwPoints: points,
   };
   await prisma.player.update({ where: { id }, data });
   revalidatePath("/admin/players");
@@ -150,7 +177,16 @@ export async function updateSquad(formData: FormData) {
   return { ok: true };
 }
 
-
+// Full squad editor: lets an admin change which players are in a manager's
+// squad, its formation, and its captain, all in one save — reusing the same
+// validateSquadSelection rules the public squad builder uses (right count
+// for the formation, no duplicates, every player must exist, budget
+// respected, captain must be one of the selected players). Deliberately does
+// NOT check the gameweek's transfer window / lock state, same as the
+// existing updateSquad action already doesn't — the admin is meant to be
+// able to fix a squad regardless of those. totalPoints/gwPoints stay
+// separate, manually-entered numbers (never recalculated from the new
+// player list here) so this never becomes an automatic scoring system.
 export async function adminSaveSquad(input: {
   squadId: string;
   formation: string;

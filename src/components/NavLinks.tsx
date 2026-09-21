@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/", label: "Pick a squad" },
   { href: "/table", label: "Table" },
   { href: "/players", label: "Players" },
+  { href: "/top-scorers", label: "Top scorers" },
   { href: "/match-centre", label: "Match centre" },
 ];
 

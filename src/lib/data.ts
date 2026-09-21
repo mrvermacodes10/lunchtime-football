@@ -9,25 +9,11 @@ export async function getSettings() {
   return settings;
 }
 
-export function getFormationList(settings: { formations: string }) {
-  return settings.formations
-    .split(",")
-    .map((f) => f.trim())
-    .filter(Boolean);
-}
-
-// Formation strings like "2-2-2" are ONLY a visual pitch layout for the
-// squad builder — three rows, front-to-back, with that many slots each.
-// They do not require players to have any particular position (players
-// have no position at all in this app). Total squad size for a formation
-// is simply the sum of its three numbers.
-export function parseFormation(formation: string) {
-  const parts = formation.split("-").map((n) => parseInt(n, 10));
-  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n) || n < 0)) return null;
-  const [row1, row2, row3] = parts;
-  const total = row1 + row2 + row3;
-  return { rows: [row1, row2, row3] as [number, number, number], total };
-}
+// Re-exported from lib/formations.ts (a prisma-free module) so every
+// existing "@/lib/data" import of these keeps working unchanged, while
+// client components can import the same functions from "@/lib/formations"
+// directly without pulling prisma into the browser bundle.
+export { parseFormation, getFormationList, distributeIntoRows } from "./formations";
 
 export async function getCurrentGameweek() {
   let gw = await prisma.gameweek.findFirst({ where: { isCurrent: true } });
@@ -90,40 +76,32 @@ export async function getPlayerSelectionStats() {
   return { totalManagers, counts, forPlayer };
 }
 
-// Purely visual: splits a flat, ordered list of items into pitch rows sized
-// by `rows` (e.g. [2, 2, 2] for formation "2-2-2"). Shared by the squad
-// builder (editable) and the read-only team detail page, so both lay a
-// squad out on the pitch the same way.
-export function distributeIntoRows<T>(rows: [number, number, number], items: T[]): (T | undefined)[][] {
-  const out: (T | undefined)[][] = [];
-  let cursor = 0;
-  for (const count of rows) {
-    const row: (T | undefined)[] = [];
-    for (let i = 0; i < count; i++) {
-      row.push(items[cursor]);
-      cursor++;
-    }
-    out.push(row);
-  }
-  return out;
-}
-
 export async function getLeagueTable() {
   const managers = await prisma.manager.findMany({
     include: {
       squads: {
         orderBy: { gameweek: "desc" },
+        include: { captain: true },
       },
     },
   });
 
   const rows = managers.map((m) => {
-    const totalPoints = m.squads.reduce((sum, s) => sum + s.totalPoints, 0);
+    // The captain multiplier lives entirely here, at display time — it
+    // never touches Squad.totalPoints/gwPoints (which stay a plain sum of
+    // that squad's players, exactly as before) or Player.totalPoints (which
+    // is never doubled and is identical for every manager who owns that
+    // player). It's purely "this manager's fantasy score counts their
+    // captain's points a second time", using the captain's current points
+    // so it's always up to date even if the underlying squad snapshot is
+    // stale.
+    const totalPoints = m.squads.reduce((sum, s) => sum + s.totalPoints + (s.captain?.totalPoints ?? 0), 0);
     const latest = m.squads[0];
+    const gwPoints = latest ? latest.gwPoints + (latest.captain?.totalPoints ?? 0) : 0;
     return {
       managerId: m.id,
       managerName: m.name,
-      gwPoints: latest?.gwPoints ?? 0,
+      gwPoints,
       totalPoints,
       squadsSaved: m.squads.length,
     };
