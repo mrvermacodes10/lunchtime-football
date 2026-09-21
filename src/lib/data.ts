@@ -81,7 +81,7 @@ export async function getLeagueTable() {
     include: {
       squads: {
         orderBy: { gameweek: "desc" },
-        include: { captain: true },
+        include: { captain: true, players: { include: { player: true } } },
       },
     },
   });
@@ -95,9 +95,18 @@ export async function getLeagueTable() {
     // captain's points a second time", using the captain's current points
     // so it's always up to date even if the underlying squad snapshot is
     // stale.
-    const totalPoints = m.squads.reduce((sum, s) => sum + s.totalPoints + (s.captain?.totalPoints ?? 0), 0);
+    const totalPoints = m.squads.reduce(
+      (sum, s) =>
+        sum +
+        s.players.reduce((playerSum, sp) => playerSum + sp.player.totalPoints, 0) +
+        (s.captain?.totalPoints ?? 0),
+      0
+    );
     const latest = m.squads[0];
-    const gwPoints = latest ? latest.gwPoints + (latest.captain?.totalPoints ?? 0) : 0;
+    const gwPoints = latest
+      ? latest.players.reduce((sum, sp) => sum + sp.player.gwPoints, 0) +
+        (latest.captain?.gwPoints ?? 0)
+      : 0;
     return {
       managerId: m.id,
       managerName: m.name,
