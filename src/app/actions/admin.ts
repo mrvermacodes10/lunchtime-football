@@ -15,6 +15,8 @@ function refreshPublicPages() {
   revalidatePath("/players");
   revalidatePath("/match-centre");
   revalidatePath("/top-scorers");
+  revalidatePath("/transfers");
+  revalidatePath("/teams");
 }
 
 // ---------- Auth ----------
@@ -354,6 +356,96 @@ export async function deleteMatch(id: string) {
   await requireAdmin();
   await prisma.match.delete({ where: { id } });
   revalidatePath("/admin/matches");
+  refreshPublicPages();
+}
+
+// ---------- Transfers ----------
+
+function parseFee(raw: string): number | null {
+  const fee = parseFloat(raw);
+  if (isNaN(fee) || fee < 0) return null;
+  return fee;
+}
+
+export async function createTransfer(formData: FormData) {
+  await requireAdmin();
+  const playerId = String(formData.get("playerId") ?? "");
+  const fromTeamId = String(formData.get("fromTeamId") ?? "");
+  const toTeamId = String(formData.get("toTeamId") ?? "");
+  const dateRaw = String(formData.get("date") ?? "");
+  const feeRaw = String(formData.get("fee") ?? "");
+
+  if (!playerId || !fromTeamId || !toTeamId || !dateRaw) {
+    return { ok: false, error: "Player, from team, to team and date are all required." };
+  }
+  if (fromTeamId === toTeamId) {
+    return { ok: false, error: "From team and to team can't be the same." };
+  }
+  const date = new Date(dateRaw);
+  if (isNaN(date.getTime())) {
+    return { ok: false, error: "Enter a valid date." };
+  }
+  const fee = parseFee(feeRaw);
+  if (fee === null) {
+    return { ok: false, error: "Fee must be a valid, non-negative number." };
+  }
+
+  const [player, fromTeam, toTeam] = await Promise.all([
+    prisma.player.findUnique({ where: { id: playerId } }),
+    prisma.realTeam.findUnique({ where: { id: fromTeamId } }),
+    prisma.realTeam.findUnique({ where: { id: toTeamId } }),
+  ]);
+  if (!player) return { ok: false, error: "That player doesn't exist." };
+  if (!fromTeam || !toTeam) return { ok: false, error: "That team doesn't exist." };
+
+  await prisma.transfer.create({ data: { playerId, fromTeamId, toTeamId, date, fee } });
+  revalidatePath("/admin/transfers");
+  refreshPublicPages();
+  return { ok: true };
+}
+
+export async function updateTransfer(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id"));
+  const playerId = String(formData.get("playerId") ?? "");
+  const fromTeamId = String(formData.get("fromTeamId") ?? "");
+  const toTeamId = String(formData.get("toTeamId") ?? "");
+  const dateRaw = String(formData.get("date") ?? "");
+  const feeRaw = String(formData.get("fee") ?? "");
+
+  if (!playerId || !fromTeamId || !toTeamId || !dateRaw) {
+    return { ok: false, error: "Player, from team, to team and date are all required." };
+  }
+  if (fromTeamId === toTeamId) {
+    return { ok: false, error: "From team and to team can't be the same." };
+  }
+  const date = new Date(dateRaw);
+  if (isNaN(date.getTime())) {
+    return { ok: false, error: "Enter a valid date." };
+  }
+  const fee = parseFee(feeRaw);
+  if (fee === null) {
+    return { ok: false, error: "Fee must be a valid, non-negative number." };
+  }
+
+  const [player, fromTeam, toTeam] = await Promise.all([
+    prisma.player.findUnique({ where: { id: playerId } }),
+    prisma.realTeam.findUnique({ where: { id: fromTeamId } }),
+    prisma.realTeam.findUnique({ where: { id: toTeamId } }),
+  ]);
+  if (!player) return { ok: false, error: "That player doesn't exist." };
+  if (!fromTeam || !toTeam) return { ok: false, error: "That team doesn't exist." };
+
+  await prisma.transfer.update({ where: { id }, data: { playerId, fromTeamId, toTeamId, date, fee } });
+  revalidatePath("/admin/transfers");
+  refreshPublicPages();
+  return { ok: true };
+}
+
+export async function deleteTransfer(id: string) {
+  await requireAdmin();
+  await prisma.transfer.delete({ where: { id } });
+  revalidatePath("/admin/transfers");
   refreshPublicPages();
 }
 

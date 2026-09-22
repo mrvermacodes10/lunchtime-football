@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/admin/squads", label: "Squads" },
   { href: "/admin/gameweeks", label: "Gameweeks" },
   { href: "/admin/matches", label: "Matches" },
+  { href: "/admin/transfers", label: "Transfers" },
   { href: "/admin/table", label: "League table" },
   { href: "/admin/settings", label: "Settings" },
 ];

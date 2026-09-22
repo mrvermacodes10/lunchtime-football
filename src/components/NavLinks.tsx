@@ -7,8 +7,10 @@ const LINKS = [
   { href: "/", label: "Pick a squad" },
   { href: "/table", label: "Table" },
   { href: "/players", label: "Players" },
+  { href: "/teams", label: "Teams" },
   { href: "/top-scorers", label: "Top scorers" },
   { href: "/match-centre", label: "Match centre" },
+  { href: "/transfers", label: "Transfers" },
 ];
 
 export default function NavLinks() {

@@ -29,6 +29,8 @@ model RealTeam {
 
   homeMatches Match[] @relation("HomeTeam")
   awayMatches Match[] @relation("AwayTeam")
+  transfersFrom Transfer[] @relation("TransferFromTeam")
+  transfersTo Transfer[] @relation("TransferToTeam")
 }
 
 model Player {
@@ -51,8 +53,28 @@ model Player {
   realTeamId String
   realTeam   RealTeam @relation(fields: [realTeamId], references: [id], onDelete: Cascade)
 
+  transfers Transfer[]
   squadPlayers SquadPlayer[]
   captainOfSquads Squad[] @relation("SquadCaptain")
+}
+
+
+model Transfer {
+  id         String   @id @default(cuid())
+  fee        Float
+  date       DateTime
+
+  playerId   String
+  player     Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  fromTeamId String
+  fromTeam   RealTeam @relation("TransferFromTeam", fields: [fromTeamId], references: [id])
+
+  toTeamId   String
+  toTeam     RealTeam @relation("TransferToTeam", fields: [toTeamId], references: [id])
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model Manager {
