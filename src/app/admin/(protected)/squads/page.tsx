@@ -39,6 +39,7 @@ export default async function AdminSquadsPage({
         totalPrice: s.totalPrice,
         moneyLeft: s.moneyLeft,
         totalPoints: s.totalPoints,
+        pointsOverride: s.pointsOverride,
         gwPoints: s.gwPoints,
         locked: s.locked,
         savedAt: s.savedAt.toISOString(),

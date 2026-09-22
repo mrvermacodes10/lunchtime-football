@@ -13,6 +13,7 @@ type SquadData = {
   formation: string;
   captainId: string | null;
   totalPoints: number;
+  pointsOverride: number | null;
   gwPoints: number;
   locked: boolean;
   players: { id: string; name: string }[];
@@ -36,7 +37,7 @@ export default function SquadEditor({
   const [formation, setFormation] = useState(squad.formation);
   const [selectedIds, setSelectedIds] = useState<string[]>(squad.players.map((p) => p.id));
   const [captainId, setCaptainId] = useState<string | null>(squad.captainId);
-  const [totalPoints, setTotalPoints] = useState(String(squad.totalPoints));
+  const [pointsOverride, setPointsOverride] = useState(squad.pointsOverride == null ? "" : String(squad.pointsOverride));
   const [gwPoints, setGwPoints] = useState(String(squad.gwPoints));
   const [locked, setLocked] = useState(squad.locked);
   const [search, setSearch] = useState("");
@@ -96,7 +97,8 @@ export default function SquadEditor({
         formation,
         playerIds: selectedIds,
         captainId,
-        totalPoints: parseInt(totalPoints, 10) || 0,
+        totalPoints: squad.totalPoints,
+        pointsOverride: pointsOverride.trim() === "" ? null : parseInt(pointsOverride, 10),
         gwPoints: parseInt(gwPoints, 10) || 0,
         locked,
       });
@@ -249,8 +251,8 @@ export default function SquadEditor({
           <input value={gwPoints} onChange={(e) => setGwPoints(e.target.value)} type="number" className={inputCls} />
         </div>
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-[#8a8471]">Total points</label>
-          <input value={totalPoints} onChange={(e) => setTotalPoints(e.target.value)} type="number" className={inputCls} />
+          <label className="text-xs font-semibold uppercase tracking-wide text-[#8a8471]">Points override</label>
+          <input value={pointsOverride} onChange={(e) => setPointsOverride(e.target.value)} type="number" placeholder="Automatic" className={inputCls} />
         </div>
         <label className="flex items-center gap-1.5 text-sm pb-1.5">
           <input type="checkbox" checked={locked} onChange={(e) => setLocked(e.target.checked)} />

@@ -69,6 +69,7 @@ model Squad {
   totalPrice    Float
   moneyLeft     Float
   totalPoints   Int      @default(0)
+  pointsOverride Int?
   gwPoints      Int      @default(0)
   gameweek      Int
   locked        Boolean  @default(false)

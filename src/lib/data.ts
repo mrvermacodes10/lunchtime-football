@@ -98,8 +98,9 @@ export async function getLeagueTable() {
     const totalPoints = m.squads.reduce(
       (sum, s) =>
         sum +
-        s.players.reduce((playerSum, sp) => playerSum + sp.player.totalPoints, 0) +
-        (s.captain?.totalPoints ?? 0),
+        (s.pointsOverride ??
+          (s.players.reduce((playerSum, sp) => playerSum + sp.player.totalPoints, 0) +
+            (s.captain?.totalPoints ?? 0))),
       0
     );
     const latest = m.squads[0];

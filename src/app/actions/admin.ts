@@ -195,6 +195,7 @@ export async function adminSaveSquad(input: {
   totalPoints: number;
   gwPoints: number;
   locked: boolean;
+  pointsOverride: number | null;
 }) {
   await requireAdmin();
 
@@ -230,6 +231,7 @@ export async function adminSaveSquad(input: {
         gwPoints: input.gwPoints,
         captainId,
         locked: input.locked,
+        pointsOverride: input.pointsOverride,
       },
     }),
   ]);

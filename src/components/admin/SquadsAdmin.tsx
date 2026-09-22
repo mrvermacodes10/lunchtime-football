@@ -12,6 +12,7 @@ type Squad = {
   totalPrice: number;
   moneyLeft: number;
   totalPoints: number;
+  pointsOverride: number | null;
   gwPoints: number;
   locked: boolean;
   savedAt: string;
